@@ -72,3 +72,7 @@ docs/html
 *.csv
 *.xlsx
 sellers.json
+
+*.pyc
+venv/
+*.db
