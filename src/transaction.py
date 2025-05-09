@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Optional
 from dateutil.parser import parse as parse_date
+from src.database import Database
 
-#Класс для представления финансовой транзакции
 class Transaction:
-    #Инициализация новой транзакции.
-    def __init__(self, id: int, amount: float, category: str, date: datetime, type: str = "", description: str = ""):
+    def __init__(self, db: Database ,id: int, amount: float, category: str, date: datetime, type: str = "", description: str = ""):
         if amount == 0:
             raise ValueError("Сумма транзакции не может быть нулевой")
         if not category.strip():
@@ -13,6 +12,7 @@ class Transaction:
         if not isinstance(date, datetime):
             raise ValueError("Дата должна быть объектом datetime")
 
+        self.db = db
         self.id = id
         self.amount = amount
         self.category = category
@@ -20,9 +20,8 @@ class Transaction:
         self.type = type
         self.description = description
 
-    #Создание транзакции
     @classmethod
-    def from_dict(cls, data: dict) -> 'Transaction':
+    def from_dict(cls,db: Database, data: dict) -> 'Transaction':
         required_keys = {'id', 'amount', 'category', 'type', 'date'}
         if not all(key in data for key in required_keys):
             raise KeyError("Словарь должен содержать ключи: id, amount, category, date")
@@ -30,6 +29,7 @@ class Transaction:
         date = parse_date(data['date']) if isinstance(data['date'], str) else data['date']
 
         return cls(
+            db=db,
             id=data['id'],
             amount=data['amount'],
             category=data['category'],
@@ -38,7 +38,6 @@ class Transaction:
             description=data.get('description')
         )
 
-    #Преобразует транзакцию в словарь для хранения
     def to_dict(self) -> dict:
 
         return {
@@ -49,3 +48,29 @@ class Transaction:
             'type':self.type,
             'description': self.description
         }
+
+    def save(self):
+        """Сохраняет транзакцию в базе данных"""
+        self.db.add_transactions(
+            date=self.date.isoformat(),
+            amount=self.amount,
+            category=self.category,
+            type=self.type,
+            description=self.description
+        )
+
+    @classmethod
+    def get_all(cls, db: Database) -> list['Transaction']:
+        """Получает все транзакции из базы данных"""
+        transactions = db.get_transactions()
+        return [
+            cls(
+                db=db,
+                id=t[0],
+                date=parse_date(t[1]),
+                amount=t[2],
+                category=t[3],
+                type=t[4],
+                description=t[5] if t[5] is not None else ''
+            ) for t in transactions
+        ]
